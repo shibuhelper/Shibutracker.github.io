@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sheebu's GOD MODE Tracker v2.0</title>
+    <style>
+        :root {
+            --bg: #050505;
+            --card: #111;
+            --card-border: #222;
+            --accent: #00e676;
+            --danger: #ff1744;
+            --warn: #ffea00;
+            --info: #2979ff;
+            --purple: #d500f9;
+            --text-main: #fff;
+            --text-muted: #888;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            margin: 0; padding: 0;
+            padding-bottom: 100px; /* Fixed padding for mobile nav */
+            overflow-x: hidden;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes popUp { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        /* --- UI COMPONENTS --- */
+        .screen { display: none; padding: 15px; animation: fadeIn 0.3s ease; }
+        .screen.active { display: block; }
+        
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; background: rgba(10,10,10,0.95); backdrop-filter: blur(10px);
+            position: sticky; top: 0; z-index: 50; border-bottom: 1px solid #222;
+        }
+        .avatar { 
+            width: 45px; height: 45px; 
+            background: linear-gradient(135deg, var(--info), var(--purple)); 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            font-size: 1.5rem; cursor: pointer; border: 2px solid #fff;
+        }
+        
+        .card {
+            background: var(--card); border: 1px solid var(--card-border);
+            border-radius: 16px; padding: 15px; margin-bottom: 15px;
+            position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .card-title { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; }
+
+        /* --- WIDGETS --- */
+        .timer-box { text-align: center; background: linear-gradient(135deg, #1a001a, #000); border: 1px solid var(--purple); }
+        .countdown { font-size: 2.2rem; font-weight: 900; color: #fff; text-shadow: 0 0 15px var(--purple); font-family: monospace; }
+        
+        .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-item { background: #161616; padding: 12px; border-radius: 12px; text-align: center; border: 1px solid #2a2a2a; }
+        .stat-val { font-size: 1.3rem; font-weight: bold; color: var(--accent); }
+        .stat-lbl { font-size: 0.7rem; color: #777; margin-top: 2px; }
+
+        /* --- GRAPHICS --- */
+        .graph-container { display: flex; align-items: flex-end; justify-content: space-between; height: 120px; padding-top: 10px; }
+        .bar-group { display: flex; flex-direction: column; align-items: center; width: 12%; }
+        .bar { width: 100%; background: #333; border-radius: 4px 4px 0 0; transition: height 0.5s ease; position: relative; }
+        .bar.high { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+        .bar.mid { background: var(--warn); }
+        .bar.low { background: var(--danger); }
+        .bar-day { font-size: 0.6rem; margin-top: 5px; color: #666; }
+
+        .donut-wrapper { display: flex; align-items: center; gap: 15px; }
+        .donut { width: 90px; height: 90px; border-radius: 50%; background: conic-gradient(#333 0% 100%); position: relative; flex-shrink: 0; }
+        .donut-hole { width: 60px; height: 60px; background: var(--card); border-radius: 50%; position: absolute; top: 15px; left: 15px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem; }
+        .legend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; width: 100%; }
+        .legend-item { font-size: 0.75rem; display: flex; align-items: center; gap: 6px; color: #aaa; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        /* --- FORMS --- */
+        input, select, textarea {
+            width: 100%; background: #1a1a1a; border: 1px solid #333;
+            color: #fff; padding: 12px; border-radius: 10px;
+            font-size: 1rem; margin-bottom: 12px; outline: none;
+            transition: 0.2s; font-family: inherit;
+        }
+        input:focus, textarea:focus { border-color: var(--accent); background: #222; }
+        
+        .btn { width: 100%; padding: 14px; border-radius: 12px; font-weight: bold; border: none; cursor: pointer; font-size: 1rem; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--accent); color: #000; box-shadow: 0 4px 15px rgba(0, 230, 118, 0.2); }
+        .btn-music { background: #222; border: 1px solid #333; color: var(--purple); }
+        .btn-music.playing { border-color: var(--purple); box-shadow: 0 0 10px var(--purple); }
+
+        .chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
+        .chip { background: #222; border: 1px solid #333; color: #888; padding: 10px; border-radius: 8px; text-align: center; font-size: 0.85rem; cursor: pointer; transition: 0.2s; }
+        .chip.selected { background: var(--info); color: white; border-color: var(--info); font-weight: bold; transform: scale(1.05); }
+
+        /* --- HISTORY --- */
+        .history-item { background: #161616; padding: 12px; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .rev-tag { background: #333; font-size: 0.6rem; padding: 2px 5px; border-radius: 3px; color: var(--warn); margin-left: 5px; }
+
+        /* --- NAVIGATION --- */
+        .nav-bar {
+            position: fixed; bottom: 0; width: 100%; height: 70px;
+            background: rgba(10,10,10,0.95); backdrop-filter: blur(10px);
+            border-top: 1px solid #222; display: flex; justify-content: space-around;
+            align-items: center; z-index: 100;
+        }
+        .nav-btn { background: none; border: none; color: #555; display: flex; flex-direction: column; align-items: center; font-size: 0.7rem; gap: 4px; width: 25%; cursor: pointer; }
+        .nav-icon { font-size: 1.5rem; transition: 0.2s; }
+        .nav-btn.active { color: var(--accent); }
+        .nav-btn.active .nav-icon { transform: translateY(-3px); }
+
+        /* --- TOAST & MODALS --- */
+        #toastBox { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.9rem; z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        #toastBox.show { opacity: 1; bottom: 90px; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 500; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal-content { background: #1a1a1a; padding: 25px; border-radius: 20px; width: 85%; max-width: 350px; text-align: center; border: 1px solid #333; animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .lvl-up-anim { font-size: 3rem; margin-bottom: 10px; animation: popUp 0.5s infinite alternate; }
+
+        /* --- UTILS --- */
+        .hidden { display: none !important; }
+        .confetti { position: fixed; width: 8px; height: 8px; z-index: 999; pointer-events: none; }
+        .todo-item.done { text-decoration: line-through; color: #444; }
+        
+        .xp-shop-btn { background: linear-gradient(45deg, #FFD700, #FFA500); color: black; font-size: 0.8rem; padding: 5px 10px; border-radius: 15px; border:none; font-weight:bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div style="display:flex; align-items:center; gap:10px;">
+        <div class="avatar" id="userAvatar" onclick="changeAvatar()">😎</div>
+        <div>
+            <div id="greeting" style="font-size:0.8rem; color:var(--accent); font-weight:bold;">Good Morning</div>
+            <div style="font-size:0.9rem; font-weight:bold;">Sheebu <span id="rankBadge" style="font-size:0.7rem; background:#333; padding:2px 5px; border-radius:4px; color:#aaa;">Noob</span></div>
+        </div>
+    </div>
+    <div style="text-align:right;">
+        <div style="font-size:0.7rem; color:#aaa;">LVL <span id="userLvl">1</span></div>
+        <div style="font-size:0.9rem; font-weight:bold; color:var(--purple);"><span id="userXp">0</span> XP</div>
+    </div>
+</div>
+
+<div id="tab-home" class="screen active">
+    
+    <div class="card" style="background:#111; border-left: 3px solid var(--accent); padding: 10px;">
+        <div style="font-style:italic; color:#bbb; font-size:0.9rem; text-align:center;" id="dailyQuote">"Loading motivation..."</div>
+    </div>
+
+    <div class="card timer-box">
+        <div class="card-title">
+            <span>⏳ Exam Countdown</span> 
+            <span onclick="editExamDate()" style="cursor:pointer; padding:5px;">⚙️</span>
+        </div>
+        <div class="countdown" id="examTimer">00:00:00</div>
+        <div style="font-size:0.75rem; color:#888; margin-top:5px;" id="examDateDisplay">Set a date!</div>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-item">
+            <div class="stat-val" id="streakVal">0</div>
+            <div class="stat-lbl">Streak 🔥</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-val" id="shieldsVal">0</div>
+            <div class="stat-lbl">Shields 🛡️</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-val" id="avgVal">0h</div>
+            <div class="stat-lbl">Avg/Day 📊</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">
+            <span>⚡ Quick Actions</span>
+            <button class="xp-shop-btn" onclick="buyShield()">Buy Shield (200 XP)</button>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-music" id="focusMusicBtn" onclick="toggleMusic()" style="flex:1;">🎵 Music</button>
+            <button class="btn btn-music" onclick="toggleStopwatch()" style="flex:1;">⏱️ Watch</button>
+        </div>
+        <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
+            <span style="font-size:0.8rem; color:#666;">Vol:</span>
+            <input type="range" id="volSlider" min="0" max="1" step="0.1" value="0.5" onchange="setVolume(this.value)" style="height:4px; margin:0;">
+        </div>
+        
+        <div id="stopwatchBox" class="hidden" style="margin-top:15px; text-align:center; padding-top:10px; border-top:1px solid #333;">
+            <div style="font-size:2.5rem; font-family:monospace; color:var(--info);" id="swDisplay">00:00:00</div>
+            <button onclick="toggleStopwatch()" style="background:none; border:1px solid #444; color:#888; padding:5px 10px; border-radius:5px; margin-top:5px; font-size:0.8rem;">Stop/Hide</button>
+        </div>
+    </div>
+</div>
+
+<div id="tab-entry" class="screen">
+    <div class="card">
+        <div class="card-title">🚀 Aaj Ka Hisaab</div>
+        <input type="hidden" id="editId">
+        
+        <div style="display:flex; justify-content:center; gap:15px; margin-bottom:15px;">
+            <span onclick="setMood('🔥')" class="mood-icon" style="font-size:1.8rem; opacity:0.3; cursor:pointer;">🔥</span>
+            <span onclick="setMood('🙂')" class="mood-icon" style="font-size:1.8rem; opacity:0.3; cursor:pointer;">🙂</span>
+            <span onclick="setMood('😴')" class="mood-icon" style="font-size:1.8rem; opacity:0.3; cursor:pointer;">😴</span>
+        </div>
+        <input type="hidden" id="moodInp">
+
+        <input type="date" id="dateInput">
+        
+        <div class="chips">
+            <div class="chip" onclick="toggleSub(this, 'Maths')">Maths</div>
+            <div class="chip" onclick="toggleSub(this, 'Science')">Science</div>
+            <div class="chip" onclick="toggleSub(this, 'English')">English</div>
+            <div class="chip" onclick="toggleSub(this, 'Hindi')">Hindi</div>
+            <div class="chip" onclick="toggleSub(this, 'SST')">SST</div>
+            <div class="chip" onclick="toggleSub(this, 'Computer')">Comp</div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <label style="flex:1; background:#222; padding:10px; border-radius:8px; display:flex; align-items:center; gap:5px; font-size:0.8rem;">
+                <input type="checkbox" id="isRev" style="width:auto; margin:0;"> 🔄 Revision
+            </label>
+            <label style="flex:1; background:#222; padding:10px; border-radius:8px; display:flex; align-items:center; gap:5px; font-size:0.8rem;">
+                <input type="checkbox" id="isRest" onchange="toggleRest()" style="width:auto; margin:0;"> 🛌 Rest Day
+            </label>
+        </div>
+
+        <div id="mainInputs">
+            <input type="number" id="hrsInput" placeholder="⏱️ Hours (Target: 8h)" step="0.1">
+            <textarea id="noteInput" rows="2" placeholder="📝 Kya padha aaj?"></textarea>
+            
+            <select id="bahanaInput" class="hidden" style="border-color:var(--danger); color:var(--danger);">
+                <option value="">Reason for less study?</option>
+                <option value="Aalas">Aalas (Laziness) [-10 XP]</option>
+                <option value="Phone">Phone Distraction [-20 XP]</option>
+                <option value="Bimar">Bimar tha [No Penalty]</option>
+                <option value="Emergency">Emergency [No Penalty]</option>
+            </select>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveData()" id="saveBtn">SAVE DATA ✅</button>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📝 Todo List (Click to finish)</div>
+        <input type="text" id="todo1" class="todo-item" placeholder="1. Target..." onchange="saveTodo(1)">
+        <input type="text" id="todo2" class="todo-item" placeholder="2. Target..." onchange="saveTodo(2)">
+    </div>
+</div>
+
+<div id="tab-stats" class="screen">
+    <div class="card">
+        <div class="card-title">📊 Last 7 Days</div>
+        <div class="graph-container" id="barChart"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🍩 Breakdown</div>
+        <div class="donut-wrapper">
+            <div class="donut" id="subjectChart">
+                <div class="donut-hole" id="totalHrsDisp">0h</div>
+            </div>
+            <div class="legend-grid" id="chartLegend"></div>
+        </div>
+        <div style="margin-top:15px; font-size:0.8rem; display:flex; justify-content:space-between; border-top:1px solid #222; padding-top:10px;">
+            <div style="color:var(--accent);">Strong: <span id="strongSub">-</span></div>
+            <div style="color:var(--danger);">Weak: <span id="weakSub">-</span></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📅 Heatmap (Click date)</div>
+        <div id="heatmapGrid" style="display:grid; grid-template-columns:repeat(7, 1fr); gap:5px; margin-top:10px;"></div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span class="card-title" style="margin:0;">📜 History</span>
+        <button onclick="copyStats()" style="background:none; border:none; color:var(--info); cursor:pointer; font-size:0.8rem;">📋 Copy Stats</button>
+    </div>
+    
+    <input type="text" id="searchBar" placeholder="🔍 Search History..." onkeyup="renderHistory()" style="padding:8px; font-size:0.9rem;">
+    <div id="historyList"></div>
+</div>
+
+<div id="tab-profile" class="screen">
+    <div class="card" style="text-align:center;">
+        <div class="avatar" style="width:70px; height:70px; margin:0 auto; font-size:2rem;" id="profAvatar">😎</div>
+        <h2 style="margin:10px 0 0 0;">Sheebu</h2>
+        <div style="color:var(--text-muted); font-size:0.85rem;" id="profRank">Novice</div>
+        
+        <div style="background:#222; height:8px; border-radius:4px; margin-top:15px; overflow:hidden;">
+            <div id="xpBar" style="width:0%; background:var(--purple); height:100%; transition:width 0.5s;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#666; margin-top:5px;">
+            <span>Lvl <span id="profLvlVal">1</span></span>
+            <span>Next Lvl</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🏆 Achievements</div>
+        <div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:5px;" id="badgeContainer">
+            </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">💾 Data Management</div>
+        <button class="btn" style="background:#222; color:var(--info); margin-bottom:10px;" onclick="downloadData()">📥 Backup Download</button>
+        
+        <input type="file" id="restoreFile" hidden onchange="restoreData(this)">
+        <button class="btn" style="background:#222; color:#fff; margin-bottom:10px;" onclick="document.getElementById('restoreFile').click()">📤 Restore Data</button>
+        
+        <button class="btn" style="background:transparent; border:1px solid var(--danger); color:var(--danger);" onclick="resetApp()">⚠️ Reset App</button>
+    </div>
+</div>
+
+<div class="nav-bar">
+    <button class="nav-btn active" onclick="nav('home', this)"><span class="nav-icon">🏠</span></button>
+    <button class="nav-btn" onclick="nav('entry', this)"><span class="nav-icon">📝</span></button>
+    <button class="nav-btn" onclick="nav('stats', this)"><span class="nav-icon">📊</span></button>
+    <button class="nav-btn" onclick="nav('profile', this)"><span class="nav-icon">👤</span></button>
+</div>
+
+<div id="toastBox">Notification</div>
+
+<div class="modal-overlay" id="lvlModal" onclick="this.style.display='none'">
+    <div class="modal-content">
+        <div class="lvl-up-anim">🎉</div>
+        <h2 style="color:var(--accent); margin:0;">LEVEL UP!</h2>
+        <p>You reached Level <span id="newLvlDisp">2</span>!</p>
+        <p style="font-size:0.8rem; color:#aaa;">Keep grinding!</p>
+    </div>
+</div>
+
+<audio id="clickSnd" src="https://assets.mixkit.co/sfx/preview/mixkit-modern-technology-select-3124.mp3"></audio>
+<audio id="successSnd" src="https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3"></audio>
+<audio id="lofiAudio" loop src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112762.mp3"></audio>
+
+<script>
+    // --- STATE ---
+    const TARGET = 8;
+    const SUBJECTS = ['Maths', 'Science', 'English', 'Hindi', 'SST', 'Computer'];
+    const COLORS = ['#3b82f6', '#d500f9', '#00e676', '#ffea00', '#ff1744', '#00bcd4'];
+    const RANKS = ["Noob", "Beginner", "Student", "Scholar", "Pro", "Expert", "Master", "Grandmaster", "Legend", "GOD MODE"];
+    
+    let selectedSubs = [];
+    let isRest = false;
+    let editId = null;
+    let swInterval = null;
+
+    // --- INIT ---
+    window.onload = () => {
+        document.getElementById('dateInput').valueAsDate = new Date();
+        loadApp();
+        checkStopwatch();
+        setInterval(updateExamTimer, 1000);
+        
+        // Greeting
+        const hr = new Date().getHours();
+        const greet = hr < 12 ? "Good Morning" : hr < 18 ? "Good Afternoon" : "Good Evening";
+        document.getElementById('greeting').innerText = greet;
+
+        // Bahana Listener
+        document.getElementById('hrsInput').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value) || 0;
+            const bBox = document.getElementById('bahanaInput');
+            if(val > 0 && val < TARGET) bBox.classList.remove('hidden');
+            else bBox.classList.add('hidden');
+        });
+        
+        // Load Todos style
+        [1,2].forEach(i => {
+            const val = localStorage.getItem('todo'+i);
+            const el = document.getElementById('todo'+i);
+            if(val) {
+                if(val.startsWith('DONE:')) {
+                    el.value = val.replace('DONE:','');
+                    el.classList.add('done');
+                } else el.value = val;
+            }
+        });
+    };
+
+    // --- NAVIGATION ---
+    function nav(tabId, btn) {
+        playSound('click');
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('tab-'+tabId).classList.add('active');
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    // --- CORE LOGIC ---
+    function loadApp() {
+        const data = JSON.parse(localStorage.getItem('sheebuGodData')) || [];
+        const user = JSON.parse(localStorage.getItem('sheebuUser')) || { xp: 0, shields: 0, avatar: '😎' };
+        
+        // Stats Calc
+        let totalHrs = 0;
+        let subCounts = {};
+        let streak = 0;
+        
+        data.forEach(d => {
+            if(!d.isRest) {
+                totalHrs += d.duration;
+                d.subjects.forEach(s => subCounts[s] = (subCounts[s]||0) + d.duration);
+            }
+        });
+
+        // Level & Rank
+        const lvl = Math.floor(user.xp / 100) + 1;
+        const rank = RANKS[Math.min(lvl-1, RANKS.length-1)];
+        
+        // DOM Updates
+        document.getElementById('userLvl').innerText = lvl;
+        document.getElementById('profLvlVal').innerText = lvl;
+        document.getElementById('userXp').innerText = Math.round(user.xp);
+        document.getElementById('userAvatar').innerText = user.avatar;
+        document.getElementById('profAvatar').innerText = user.avatar;
+        document.getElementById('rankBadge').innerText = rank;
+        document.getElementById('profRank').innerText = rank;
+        document.getElementById('shieldsVal').innerText = user.shields;
+        document.getElementById('xpBar').style.width = (user.xp % 100) + "%";
+
+        // Calculate Streak (Approx)
+        let today = new Date();
+        for(let i=0; i<60; i++) {
+            let dStr = today.toISOString().split('T')[0];
+            let entry = data.find(x => x.date === dStr);
+            if(entry) streak++;
+            else if(i>0) break; // Break if gap found and not today
+            today.setDate(today.getDate()-1);
+        }
+        document.getElementById('streakVal').innerText = streak;
+
+        // Visuals
+        renderBarChart(data);
+        renderDonut(subCounts, totalHrs);
+        renderHistory(data);
+        renderHeatmap(data);
+        
+        // Avg
+        if(data.length > 0) document.getElementById('avgVal').innerText = (totalHrs/data.length).toFixed(1)+'h';
+        
+        // Quote
+        const quotes = ["Padh le bhai!", "Sapne bade hain?", "Phone side rakh!", "Tu phodega!", "Zidd kar!"];
+        document.getElementById('dailyQuote').innerText = quotes[Math.floor(Math.random()*quotes.length)];
+    }
+
+    function saveData() {
+        const date = document.getElementById('dateInput').value;
+        if(!date) return showToast("Date select kar bhai!");
+
+        let data = JSON.parse(localStorage.getItem('sheebuGodData')) || [];
+        let user = JSON.parse(localStorage.getItem('sheebuUser')) || { xp: 0, shields: 0, avatar: '😎' };
+        const oldLvl = Math.floor(user.xp / 100) + 1;
+
+        let entry = {
+            id: editId || Date.now(),
+            date: date,
+            mood: document.getElementById('moodInp').value,
+            isRest: isRest
+        };
+
+        let gainedXp = 0;
+
+        if(isRest) {
+            entry.duration = 0; entry.subjects = []; entry.grade = 'R'; entry.notes = "Rest Day";
+            gainedXp = 5; // Minimal XP
+        } else {
+            const hrs = parseFloat(document.getElementById('hrsInput').value);
+            if(!hrs || selectedSubs.length === 0) return showToast("Time aur Subject zaruri hai!");
+            
+            entry.duration = hrs;
+            entry.subjects = selectedSubs;
+            entry.notes = document.getElementById('noteInput').value;
+            entry.bahana = document.getElementById('bahanaInput').value;
+            entry.isRev = document.getElementById('isRev').checked;
+
+            // Grade & XP Logic
+            if(hrs >= TARGET) { entry.grade = 'A+'; gainedXp = 50; fireConfetti(); }
+            else if(hrs >= 5) { entry.grade = 'B'; gainedXp = 30; }
+            else { entry.grade = 'F'; gainedXp = 10; }
+
+            // Penalties
+            if(entry.bahana === 'Phone') gainedXp -= 20;
+            if(entry.bahana === 'Aalas') gainedXp -= 10;
+        }
+
+        user.xp = Math.max(0, user.xp + gainedXp);
+        
+        // Remove old if editing
+        if(editId) data = data.filter(x => x.id !== editId);
+        
+        data.unshift(entry);
+        data.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+        localStorage.setItem('sheebuGodData', JSON.stringify(data));
+        localStorage.setItem('sheebuUser', JSON.stringify(user));
+
+        playSound('success');
+        showToast(`Saved! +${gainedXp} XP`);
+        
+        // Level Up Check
+        const newLvl = Math.floor(user.xp / 100) + 1;
+        if(newLvl > oldLvl) {
+            document.getElementById('newLvlDisp').innerText = newLvl;
+            document.getElementById('lvlModal').style.display = 'flex';
+            fireConfetti();
+        }
+
+        resetForm();
+        loadApp();
+        nav('stats', document.querySelectorAll('.nav-btn')[2]);
+    }
+
+    // --- WIDGET LOGIC ---
+    function updateExamTimer() {
+        const d = localStorage.getItem('sheebuExamDate');
+        if(!d) return;
+        document.getElementById('examDateDisplay').innerText = "Target: " + d;
+        const diff = new Date(d) - new Date();
+        if(diff > 0) {
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hrs = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            document.getElementById('examTimer').innerText = `${days}d ${hrs}h ${mins}m`;
+        } else {
+            document.getElementById('examTimer').innerText = "EXAM OVER";
+        }
+    }
+    function editExamDate() {
+        const d = prompt("Exam Date (YYYY-MM-DD):");
+        if(d) localStorage.setItem('sheebuExamDate', d);
+    }
+
+    // Stopwatch
+    function toggleStopwatch() {
+        const box = document.getElementById('stopwatchBox');
+        if(box.classList.contains('hidden')) {
+            box.classList.remove('hidden');
+            // Start Logic
+            let startTime = localStorage.getItem('swStart');
+            if(!startTime) {
+                startTime = Date.now();
+                localStorage.setItem('swStart', startTime);
+            }
+            swInterval = setInterval(() => {
+                const diff = Math.floor((Date.now() - startTime)/1000);
+                let h = Math.floor(diff/3600).toString().padStart(2,'0');
+                let m = Math.floor((diff%3600)/60).toString().padStart(2,'0');
+                let s = (diff%60).toString().padStart(2,'0');
+                document.getElementById('swDisplay').innerText = `${h}:${m}:${s}`;
+            }, 1000);
+        } else {
+            box.classList.add('hidden');
+            clearInterval(swInterval);
+            localStorage.removeItem('swStart');
+            document.getElementById('swDisplay').innerText = "00:00:00";
+        }
+    }
+    function checkStopwatch() {
+        if(localStorage.getItem('swStart')) toggleStopwatch(); // Auto resume
+    }
+
+    // Music
+    function toggleMusic() {
+        const audio = document.getElementById('lofiAudio');
+        const btn = document.getElementById('focusMusicBtn');
+        if(audio.paused) {
+            audio.play(); btn.classList.add('playing'); btn.innerText = "⏸ Playing";
+        } else {
+            audio.pause(); btn.classList.remove('playing'); btn.innerText = "🎵 Music";
+        }
+    }
+    function setVolume(v) { document.getElementById('lofiAudio').volume = v; }
+
+    // --- FORM ACTIONS ---
+    function toggleSub(el, sub) {
+        if(isRest) return;
+        playSound('click');
+        if(selectedSubs.includes(sub)) {
+            selectedSubs = selectedSubs.filter(s => s !== sub);
+            el.classList.remove('selected');
+        } else {
+            selectedSubs.push(sub);
+            el.classList.add('selected');
+        }
+    }
+    function toggleRest() {
+        isRest = document.getElementById('isRest').checked;
+        const main = document.getElementById('mainInputs');
+        const chips = document.querySelector('.chips');
+        if(isRest) {
+            main.style.opacity = 0.3; main.style.pointerEvents = 'none';
+            chips.style.opacity = 0.3; chips.style.pointerEvents = 'none';
+            document.getElementById('saveBtn').innerText = "MARK REST DAY 🛌";
+        } else {
+            main.style.opacity = 1; main.style.pointerEvents = 'auto';
+            chips.style.opacity = 1; chips.style.pointerEvents = 'auto';
+            document.getElementById('saveBtn').innerText = "SAVE DATA ✅";
+        }
+    }
+    function setMood(m) {
+        document.getElementById('moodInp').value = m;
+        document.querySelectorAll('.mood-icon').forEach(i => i.style.opacity = 0.3);
+        event.target.style.opacity = 1;
+    }
+    function editEntry(id) {
+        const data = JSON.parse(localStorage.getItem('sheebuGodData'));
+        const item = data.find(x => x.id === id);
+        if(item.isRest) {
+            document.getElementById('isRest').checked = true;
+            toggleRest();
+        } else {
+            document.getElementById('hrsInput').value = item.duration;
+            document.getElementById('noteInput').value = item.notes;
+            item.subjects.forEach(s => {
+                // Find chip and highlight
+                const chips = document.querySelectorAll('.chip');
+                chips.forEach(c => { if(c.innerText.includes(s)) toggleSub(c, s); });
+            });
+        }
+        document.getElementById('dateInput').value = item.date;
+        editId = id;
+        nav('entry', document.querySelectorAll('.nav-btn')[1]);
+    }
+    function deleteEntry(id) {
+        if(confirm("Are you sure?")) {
+            let data = JSON.parse(localStorage.getItem('sheebuGodData'));
+            data = data.filter(x => x.id !== id);
+            localStorage.setItem('sheebuGodData', JSON.stringify(data));
+            loadApp();
+            showToast("Deleted!");
+        }
+    }
+
+    // --- RENDER FUNCTIONS ---
+    function renderBarChart(data) {
+        const box = document.getElementById('barChart');
+        box.innerHTML = '';
+        let days = [];
+        for(let i=6; i>=0; i--) {
+            let d = new Date(); d.setDate(d.getDate()-i);
+            days.push(d.toISOString().split('T')[0]);
+        }
+        days.forEach(day => {
+            const entry = data.find(x => x.date === day);
+            const hrs = entry ? entry.duration : 0;
+            const hPct = Math.min((hrs/12)*100, 100); 
+            let cls = hrs >= TARGET ? 'high' : hrs >= 5 ? 'mid' : 'low';
+            box.innerHTML += `<div class="bar-group"><div class="bar ${cls}" style="height:${hPct}%"></div><div class="bar-day">${day.slice(8)}</div></div>`;
+        });
+    }
+
+    function renderDonut(subs, total) {
+        if(total === 0) return;
+        const legend = document.getElementById('chartLegend');
+        document.getElementById('totalHrsDisp').innerText = Math.round(total) + 'h';
+        legend.innerHTML = '';
+        let conic = [], deg = 0, bestSub = '-', worstSub = '-', maxH = -1, minH = 9999;
+        
+        SUBJECTS.forEach((s, i) => {
+            const val = subs[s] || 0;
+            if(val > maxH) { maxH = val; bestSub = s; }
+            if(val < minH && val > 0) { minH = val; worstSub = s; }
+            
+            if(val > 0) {
+                const p = (val/total)*360;
+                conic.push(`${COLORS[i]} ${deg}deg ${deg+p}deg`);
+                deg += p;
+                legend.innerHTML += `<div class="legend-item"><div class="dot" style="background:${COLORS[i]}"></div><span>${s} (${Math.round(val)}h)</span></div>`;
+            }
+        });
+        document.getElementById('subjectChart').style.background = `conic-gradient(${conic.join(', ')})`;
+        document.getElementById('strongSub').innerText = bestSub;
+        document.getElementById('weakSub').innerText = worstSub;
+    }
+
+    function renderHistory(dataInput) {
+        const list = document.getElementById('historyList');
+        const data = dataInput || JSON.parse(localStorage.getItem('sheebuGodData')) || [];
+        const term = document.getElementById('searchBar').value.toLowerCase();
+        list.innerHTML = '';
+
+        data.forEach(x => {
+            if(term && !JSON.stringify(x).toLowerCase().includes(term)) return;
+            const div = document.createElement('div');
+            const gradeColor = x.grade === 'A+' ? 'var(--accent)' : x.grade === 'F' ? 'var(--danger)' : '#888';
+            div.className = 'history-item';
+            div.style.borderLeftColor = gradeColor;
+            
+            div.innerHTML = `
+                <div style="width:100%">
+                    <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#666;">
+                        <span>${x.date} ${x.mood||''}</span>
+                        <span style="color:${gradeColor}; font-weight:bold;">${x.grade || '-'}</span>
+                    </div>
+                    ${x.isRest ? '<strong style="color:var(--warn)">Rest Day</strong>' : `
+                        <div style="font-weight:bold; font-size:1rem;">${x.duration}h ${x.isRev ? '<span class="rev-tag">REV</span>' : ''}</div>
+                        <div style="font-size:0.85rem; color:var(--info);">${x.subjects.join(', ')}</div>
+                        <div style="font-size:0.8rem; color:#888;">${x.notes}</div>
+                        ${x.bahana ? `<div style="font-size:0.7rem; color:var(--danger)">⚠️ ${x.bahana}</div>` : ''}
+                    `}
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px; margin-left:10px;">
+                    <button onclick="editEntry(${x.id})" style="background:none; border:none; color:#888;">✏️</button>
+                    <button onclick="deleteEntry(${x.id})" style="background:none; border:none; color:var(--danger);">🗑</button>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    function renderHeatmap(data) {
+        const grid = document.getElementById('heatmapGrid');
+        grid.innerHTML = '';
+        for(let i=27; i>=0; i--) {
+            let d = new Date(); d.setDate(d.getDate()-i);
+            let ds = d.toISOString().split('T')[0];
+            let entry = data.find(x => x.date === ds);
+            let col = '#222';
+            if(entry) col = entry.grade === 'A+' ? 'var(--accent)' : entry.grade === 'B' ? 'var(--warn)' : 'var(--danger)';
+            grid.innerHTML += `<div style="background:${col}; aspect-ratio:1; border-radius:3px; cursor:pointer;" onclick="showToast('${ds}: ${entry?entry.duration+'h':'0h'}')"></div>`;
+        }
+    }
+
+    // --- EXTRAS ---
+    function resetForm() {
+        document.getElementById('hrsInput').value = '';
+        document.getElementById('noteInput').value = '';
+        document.getElementById('isRev').checked = false;
+        document.getElementById('isRest').checked = false;
+        selectedSubs = [];
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+        editId = null;
+        toggleRest();
+    }
+
+    function fireConfetti() {
+        for(let i=0; i<30; i++) {
+            let c = document.createElement('div');
+            c.className = 'confetti';
+            c.style.left = Math.random()*100+'%';
+            c.style.top = Math.random()*100+'%';
+            c.style.background = COLORS[Math.floor(Math.random()*6)];
+            c.style.animation = `popUp 1s forwards`;
+            document.body.appendChild(c);
+            setTimeout(()=>c.remove(), 1000);
+        }
+    }
+
+    function changeAvatar() {
+        const cur = document.getElementById('userAvatar').innerText;
+        const newAv = prompt("Pick emoji:", cur);
+        if(newAv) {
+            let user = JSON.parse(localStorage.getItem('sheebuUser')) || {};
+            user.avatar = newAv;
+            localStorage.setItem('sheebuUser', JSON.stringify(user));
+            loadApp();
+        }
+    }
+
+    function buyShield() {
+        let user = JSON.parse(localStorage.getItem('sheebuUser')) || {};
+        if(user.xp >= 200) {
+            user.xp -= 200;
+            user.shields = (user.shields || 0) + 1;
+            localStorage.setItem('sheebuUser', JSON.stringify(user));
+            loadApp();
+            showToast("Shield Purchased! 🛡️");
+        } else {
+            showToast("Need 200 XP!");
+        }
+    }
+
+    function saveTodo(idx) {
+        const el = document.getElementById('todo'+idx);
+        let val = el.value;
+        if(val && !val.startsWith('DONE:')) {
+            el.addEventListener('click', function() {
+                if(!this.value.startsWith('DONE:')) {
+                    this.value = 'DONE:' + this.value;
+                    this.classList.add('done');
+                    playSound('success');
+                } else {
+                    this.value = this.value.replace('DONE:', '');
+                    this.classList.remove('done');
+                }
+                localStorage.setItem('todo'+idx, this.value);
+            });
+        }
+        localStorage.setItem('todo'+idx, val);
+    }
+
+    function playSound(type) {
+        const a = document.getElementById(type === 'click' ? 'clickSnd' : 'successSnd');
+        a.currentTime = 0; a.play().catch(()=>{});
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toastBox');
+        t.innerText = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    function copyStats() {
+        const streak = document.getElementById('streakVal').innerText;
+        const xp = document.getElementById('userXp').innerText;
+        const text = `Sheebu's Study Stats:\n🔥 Streak: ${streak}\n⚡ XP: ${xp}\nLevel: ${document.getElementById('userLvl').innerText}`;
+        navigator.clipboard.writeText(text);
+        showToast("Stats Copied!");
+    }
+
+    // --- BACKUP/RESTORE ---
+    function downloadData() {
+        const data = {
+            logs: JSON.parse(localStorage.getItem('sheebuGodData')),
+            user: JSON.parse(localStorage.getItem('sheebuUser'))
+        };
+        const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'sheebu_backup_' + new Date().toISOString().slice(0,10) + '.json';
+        a.click();
+    }
+    
+    function restoreData(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const r = new FileReader();
+        r.onload = (e) => {
+            try {
+                const d = JSON.parse(e.target.result);
+                if(d.logs) localStorage.setItem('sheebuGodData', JSON.stringify(d.logs));
+                if(d.user) localStorage.setItem('sheebuUser', JSON.stringify(d.user));
+                loadApp();
+                showToast("Data Restored!");
+            } catch(err) { showToast("Invalid File!"); }
+        };
+        r.readAsText(file);
+    }
+    
+    function resetApp() {
+        if(prompt("Type 'DELETE' to reset everything:") === 'DELETE') {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+</script>
+</body>
+</html>
